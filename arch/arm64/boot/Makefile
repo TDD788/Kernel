@@ -18,6 +18,16 @@ OBJCOPYFLAGS_Image :=-O binary -R .note -R .note.gnu.build-id -R .comment -S
 
 targets := Image Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo
 
+dtb-y += exynos/exynos3830.dtb
+dtbo-y += samsung/a12s/a12s_eur_open_w00_r01.dtbo
+dtbo-y += samsung/a12s/a12s_eur_open_w00_r00.dtbo
+
+targets += dtbs
+DTB_LIST  := $(dtb-y) $(dtbo-y)
+always    := $(DTB_LIST)
+
+dtbs: $(addprefix $(obj)/, $(DTB_LIST))
+
 $(obj)/Image: vmlinux FORCE
 	$(call if_changed,objcopy)
 
@@ -43,3 +53,5 @@ install:
 zinstall:
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \
 	$(obj)/Image.gz System.map "$(INSTALL_PATH)"
+
+clean-files := *.dtb*
