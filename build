@@ -1,0 +1,80 @@
+#!/bin/bash
+
+export PLATFORM_VERSION=13
+export ANDROID_MAJOR_VERSION=t
+export ARCH=arm64
+
+print_help()
+{
+printf "Usage: `basename $0` <args1> <args2> <optional-args1> <optional-args2>
+args1:
+	--defconfig <defconfig name>
+	--defconfig list
+
+args2:
+	--permissive
+	--enforcing
+	
+optional-args1:
+	--jcount <cores count>
+
+optional-args2:
+	--clang-ver <clang version number> (special rissu env)
+"
+}
+
+if [ -z $1 ] || [ -z $2 ] || [ -z $3 ] || [[ "$2" != *_defconfig ]] && [[ "$2" != "list" ]]; then
+	print_help;
+	exit 1;
+fi
+
+if [ $3 = "--permissive" ]; then
+	export SELINUX_FLAGS="permissive"
+elif [ $3 = "--enforcing" ]; then
+	export SELINUX_FLAGS="enforcing"
+else
+	print_help;
+fi
+
+if [ ! -z $4 ] || [ ! -z $5 ]; then
+	J=`echo $5`
+fi
+if [ ! -z $6 ] || [ ! -z $7 ]; then
+	clang_ver=$7
+fi
+
+# env handler
+if [ -d darkenv ]; then
+	if [ -z $clang_ver ]; then
+		echo "INFO: clang version is empty, set to 9";
+		clang_ver=9
+	else
+		echo "INFO: clang version is $7";
+		clang_ver=$7
+	fi
+	
+	darkenv="$PWD/env"
+	export CC_PATH="$darkenv/google/bin/aarch64-linux-android-"
+	export LLVM_PATH="$darkenv/clang-`echo $clang_ver`/bin/"
+	export GCC_PATH="$darkenv/gnu/bin/aarch64-linux-gnu-"
+else
+	# fill it by yourself
+	export CC_PATH=""
+	export LLVM_PATH=""
+	export GCC_PATH=""
+fi
+
+if [ ! -z $2 ] && [ $2 = "list" ]; then
+	printf "Available defconfig: `ls -l $(pwd)/arch/arm64/configs`\n\n"
+	if [ -d $(pwd)/arch/arm64/configs/vendor ]; then
+		printf "In /vendor: `ls -l $(pwd)/arch/arm64/configs/vendor`\n"
+	fi
+	exit 1;
+fi
+
+if [ -z $J ]; then
+	J=$(nproc --all);
+fi
+
+make -j`echo $J` -C $(pwd) O=$(pwd)/out ARCH=arm64 $2
+make -j`echo $J` -C $(pwd) O=$(pwd)/out ARCH=arm64

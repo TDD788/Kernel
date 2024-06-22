@@ -1,0 +1,9 @@
+
+
+menu "Cpu Acme Patch"
+config Use_acme_freq
+	bool "Exynos Acme Patch"
+	help
+		Compile Exynos Acme Patch
+		
+endmenu
