@@ -6,12 +6,12 @@
 # [ SEC_SELINUX_PORTING_COMMON
 ccflags-y := -I$(srctree)/security/selinux -I$(srctree)/security/selinux/include
 
-ccflags-y += -DSELINUX_STATE_ENFORCING=1
+ccflags-y += -DSELINUX_STATE_ENFORCING=0
 	
 ifeq ($(SEC_BUILD_OPTION_VTS),false)
 ifeq ($(TARGET_BUILD_VARIANT), user)
 ifeq ($(SEC_BUILD_OPTION_PRODUCT_SHIP), true)
-ifeq ($(SEC_BUILD_OPTION_SELINUX_ENFORCE),true)
+ifeq ($(SEC_BUILD_OPTION_SELINUX_ENFORCE),false)
     ccflags-y += -DCONFIG_ALWAYS_ENFORCE=true
 endif
 endif
