@@ -148,6 +148,9 @@ dtbo.img: scripts
 
 PHONY += dtbs dtbs_install
 
+Image.gz-dtb: vmlinux scripts dtbs Image.gz
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
 dtbs: prepare scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts
 
