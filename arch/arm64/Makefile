@@ -140,11 +140,11 @@ Image.%: Image
 zinstall install:
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
-%.dtb: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
+dtb: scripts
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/exynos/$@
 
-%.dtbo: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
+dtbo.img: scripts
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/samsung/a12s/$@
 
 PHONY += dtbs dtbs_install
 
