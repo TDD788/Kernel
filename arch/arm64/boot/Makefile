@@ -26,27 +26,19 @@ DTB_LIST := $(addsuffix .dtb,$(DTB_NAMES))
 else
 DTB_LIST := $(dtb-y)
 endif
-DTB_OBJS := $(shell find $(obj)/dts/ -name \*.dtb)
 
-# Define los archivos DTBO
 DTBO_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_DTBO_IMAGE_NAMES))
 ifneq ($(DTBO_NAMES),)
 DTBO_LIST := $(addsuffix .dtbo,$(DTBO_NAMES))
 else
 DTBO_LIST := $(dtbo-y)
 endif
-DTBO_OBJS := $(shell find $(obj)/dts/ -name \*.dtbo)
 
-rtic_mp.dtb: vmlinux FORCE
-	$(DTC) -O dtb -o rtic_mp.dtb -b 0 $(DTC_FLAGS) rtic_mp.dts
+$(obj)/dtb: $(DTB_LIST)
+	$(DTC) -@ -O dtb -o dtb $(DTB_LIST)
 
-# Regla para compilar archivos DTBO
-$(obj)/%.dtbo: $(src)/%.dts
-	$(DTC) -O dtbo -o $@ -b 0 $(DTC_FLAGS) $<
-
-# Regla para combinar archivos DTBO en una imagen dtbo.img
-$(obj)/dtbo.img: $(addprefix $(obj)/, $(DTBO_OBJS))
-	cat $^ > $@
+$(obj)/dtbo.img: $(DTBO_LIST) FORCE
+	$(DTC) -@ -O dtb -o dtbo.img $(DTBO_LIST)
 
 $(obj)/Image: vmlinux FORCE
 	$(call if_changed,objcopy)
