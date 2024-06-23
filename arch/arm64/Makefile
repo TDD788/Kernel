@@ -132,7 +132,7 @@ boot		:= arch/arm64/boot
 KBUILD_IMAGE	:= $(boot)/Image.gz
 KBUILD_DTBS	:= dtbs dtbs_install dtb dtbo.img Image.gz-dtb
 
-all: Image.gz $(KBUILD_DTBS)
+all: Image.gz prepare $(KBUILD_DTBS)
 
 Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
