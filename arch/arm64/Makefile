@@ -127,9 +127,9 @@ core-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 # Default target when executing plain make
 boot		:= arch/arm64/boot
 KBUILD_IMAGE	:= $(boot)/Image.gz
-KBUILD_DTBS	:= dtbs
+KBUILD_DTBS	:= dtbs dtb dtbo.img Image.gz-dtb
 
-all: Image.gz dtbs dtb dtbo.img Image.gz-dtb $(KBUILD_DTBS)
+all: Image.gz $(KBUILD_DTBS)
 
 Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
