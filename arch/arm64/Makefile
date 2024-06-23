@@ -14,6 +14,9 @@ LDFLAGS_vmlinux	:=--no-undefined -X
 CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
 GZFLAGS		:=-9
 
+include arch/arm64/boot/dts/Makefile
+include arch/arm64/boot/Makefile
+
 ifeq ($(CONFIG_RELOCATABLE), y)
 # Pass --no-apply-dynamic-relocs to restore pre-binutils-2.27 behaviour
 # for relative relocs, since this leads to better Image compression
@@ -127,7 +130,7 @@ core-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 # Default target when executing plain make
 boot		:= arch/arm64/boot
 KBUILD_IMAGE	:= $(boot)/Image.gz
-KBUILD_DTBS	:= dtbs dtb dtbo.img Image.gz-dtb
+KBUILD_DTBS	:= dtbs dtbs_install dtb dtbo.img Image.gz-dtb
 
 all: Image.gz $(KBUILD_DTBS)
 
@@ -141,10 +144,10 @@ zinstall install:
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 dtb: scripts
-	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/exynos/$@
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/exynos/$@.dts
 
 dtbo.img: scripts
-	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/samsung/a12s/$@
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/samsung/a12s/$@.dts
 
 PHONY += dtbs dtbs_install
 
