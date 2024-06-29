@@ -2,8 +2,8 @@
 VERSION = 4
 PATCHLEVEL = 19
 SUBLEVEL = 316
-EXTRAVERSION = noobcoder
-NAME = "People's Front"
+EXTRAVERSION = NoobCoder|TDD788
+NAME = "The Starting Point of a Legend"
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
