@@ -149,8 +149,6 @@ dtb: scripts
 dtbo.img: scripts
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/samsung/a12s/$@.dts
 
-PHONY += dtbs dtbs_install
-
 Image.gz-dtb: vmlinux scripts dtbs Image.gz
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
@@ -160,9 +158,11 @@ dtbs: prepare scripts
 dtbs_install:
 	$(Q)$(MAKE) $(dtbinst)=$(boot)/dts
 
-PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
+
+PHONY += dtbs dtbs_install Image.gz-dtb
+PHONY += vdso_install
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
