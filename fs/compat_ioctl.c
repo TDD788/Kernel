@@ -804,8 +804,6 @@ COMPATIBLE_IOCTL(SCSI_IOCTL_GET_BUS_NUMBER)
 COMPATIBLE_IOCTL(SCSI_IOCTL_SEND_COMMAND)
 COMPATIBLE_IOCTL(SCSI_IOCTL_PROBE_HOST)
 COMPATIBLE_IOCTL(SCSI_IOCTL_GET_PCI)
-COMPATIBLE_IOCTL(SCSI_IOCTL_SECURITY_PROTOCOL_IN)
-COMPATIBLE_IOCTL(SCSI_IOCTL_SECURITY_PROTOCOL_OUT)
 #endif
 /* Big V (don't complain on serial console) */
 IGNORE_IOCTL(VT_OPENQRY)
@@ -1372,8 +1370,7 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 	if (!f.file)
 		goto out;
 
-	/* RED-PEN how should LSM module know it's handling 32bit? */
-	error = security_file_ioctl(f.file, cmd, arg);
+	error = security_file_ioctl_compat(f.file, cmd, arg);
 	if (error)
 		goto out_fput;
 

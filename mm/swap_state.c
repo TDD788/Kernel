@@ -23,6 +23,7 @@
 #include <linux/huge_mm.h>
 
 #include <asm/pgtable.h>
+#include "internal.h"
 
 /*
  * swapper_space is a fiction, retained to simplify the path through
@@ -416,7 +417,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		/*
 		 * call radix_tree_preload() while we can wait.
 		 */
-		err = radix_tree_maybe_preload(gfp_mask & GFP_KERNEL);
+		err = radix_tree_maybe_preload(gfp_mask & GFP_RECLAIM_MASK);
 		if (err)
 			break;
 
@@ -431,12 +432,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			 * across a SWAP_HAS_CACHE swap_map entry whose page
 			 * has not been brought into the swapcache yet.
 			 */
-			if (rt_task(current)) {
-				pr_err("%s: retry swapcache lookup\n", __func__);
-				schedule_timeout_uninterruptible(1);
-			}
-			else
-				cond_resched();
+			cond_resched();
 			continue;
 		}
 		if (err) {		/* swp entry is obsolete ? */
@@ -542,10 +538,11 @@ static unsigned long swapin_nr_pages(unsigned long offset)
 		return 1;
 
 	hits = atomic_xchg(&swapin_readahead_hits, 0);
-	pages = __swapin_nr_pages(prev_offset, offset, hits, max_pages,
+	pages = __swapin_nr_pages(READ_ONCE(prev_offset), offset, hits,
+				  max_pages,
 				  atomic_read(&last_readahead_pages));
 	if (!hits)
-		prev_offset = offset;
+		WRITE_ONCE(prev_offset, offset);
 	atomic_set(&last_readahead_pages, pages);
 
 	return pages;
@@ -568,10 +565,6 @@ static unsigned long swapin_nr_pages(unsigned long offset)
  * the readahead.
  *
  * Caller must hold down_read on the vma->vm_mm if vmf->vma is not NULL.
- * This is needed to ensure the VMA will not be freed in our back. In the case
- * of the speculative page fault handler, this cannot happen, even if we don't
- * hold the mmap_sem. Callees are assumed to take care of reading VMA's fields
- * using READ_ONCE() to read consistent values.
  */
 struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 				struct vm_fault *vmf)
@@ -665,13 +658,12 @@ static inline void swap_ra_clamp_pfn(struct vm_area_struct *vma,
 				     unsigned long *start,
 				     unsigned long *end)
 {
-	*start = max3(lpfn, PFN_DOWN(READ_ONCE(vma->vm_start)),
+	*start = max3(lpfn, PFN_DOWN(vma->vm_start),
 		      PFN_DOWN(faddr & PMD_MASK));
-	*end = min3(rpfn, PFN_DOWN(READ_ONCE(vma->vm_end)),
+	*end = min3(rpfn, PFN_DOWN(vma->vm_end),
 		    PFN_DOWN((faddr & PMD_MASK) + PMD_SIZE));
 }
 
-#ifdef CONFIG_SWAP_ENABLE_READAHEAD
 static void swap_ra_info(struct vm_fault *vmf,
 			struct vma_swap_readahead *ra_info)
 {
@@ -806,14 +798,6 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
 			swap_vma_readahead(entry, gfp_mask, vmf) :
 			swap_cluster_readahead(entry, gfp_mask, vmf);
 }
-#else
-struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
-				struct vm_fault *vmf)
-{
-	return read_swap_cache_async(entry, gfp_mask,
-			vmf->vma, vmf->address, true);
-}
-#endif
 
 #ifdef CONFIG_SYSFS
 static ssize_t vma_ra_enabled_show(struct kobject *kobj,

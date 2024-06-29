@@ -91,14 +91,6 @@ obj-$(CONFIG_ARM_TEGRA186_CPUFREQ)	+= tegra186-cpufreq.o
 obj-$(CONFIG_ARM_TI_CPUFREQ)		+= ti-cpufreq.o
 obj-$(CONFIG_ARM_VEXPRESS_SPC_CPUFREQ)	+= vexpress-spc-cpufreq.o
 
-ifeq ($(CONFIG_USE_EXYNOS_ACME),y)
-$(info -- Using exynos acme)
-obj-$(CONFIG_ARM_EXYNOS_ACME) += cpufreq/
-else
-obj-$(CONFIG_ARM_EXYNOS_ACME)		+= exynos-acme.o
-endif
-
-obj-$(CONFIG_ARM_EXYNOS_UFC)		+= exynos-ufc.o
 
 ##################################################################################
 # PowerPC platform drivers

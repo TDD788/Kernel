@@ -25,7 +25,6 @@
 #include <linux/debugfs.h>
 #include <linux/serial_core.h>
 #include <linux/sysfs.h>
-#include <linux/debug-snapshot.h>
 #include <linux/random.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
@@ -80,6 +79,71 @@ void of_fdt_limit_memory(int limit)
 		}
 	}
 }
+
+/**
+ * of_fdt_get_ddrhbb - Return the highest bank bit of ddr on the current device
+ *
+ * On match, returns a non-zero positive value which matches the highest bank
+ * bit.
+ * Otherwise returns -ENOENT.
+ */
+int of_fdt_get_ddrhbb(int channel, int rank)
+{
+	int memory;
+	int len;
+	int ret;
+	/* Single spaces reserved for channel(0-9), rank(0-9) */
+	char pname[] = "ddr_device_hbb_ch _rank ";
+	fdt32_t *prop = NULL;
+
+	memory = fdt_path_offset(initial_boot_params, "/memory");
+	if (memory > 0) {
+		snprintf(pname, sizeof(pname),
+			 "ddr_device_hbb_ch%d_rank%d", channel, rank);
+		prop = fdt_getprop_w(initial_boot_params, memory,
+				     pname, &len);
+	}
+
+	if (!prop || len != sizeof(u32))
+		return -ENOENT;
+
+	ret = fdt32_to_cpu(*prop);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_fdt_get_ddrhbb);
+
+/**
+ * of_fdt_get_ddrrank - Return the rank of ddr on the current device
+ *
+ * On match, returns a non-zero positive value which matches the ddr rank.
+ * Otherwise returns -ENOENT.
+ */
+int of_fdt_get_ddrrank(int channel)
+{
+	int memory;
+	int len;
+	int ret;
+	/* Single space reserved for channel(0-9) */
+	char pname[] = "ddr_device_rank_ch ";
+	fdt32_t *prop = NULL;
+
+	memory = fdt_path_offset(initial_boot_params, "/memory");
+	if (memory > 0) {
+		snprintf(pname, sizeof(pname),
+			 "ddr_device_rank_ch%d", channel);
+		prop = fdt_getprop_w(initial_boot_params, memory,
+				     pname, &len);
+	}
+
+	if (!prop || len != sizeof(u32))
+		return -ENOENT;
+
+	ret = fdt32_to_cpu(*prop);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_fdt_get_ddrrank);
 
 /**
  * of_fdt_get_ddrtype - Return the type of ddr (4/5) on the current device
@@ -420,7 +484,7 @@ static int unflatten_dt_nodes(const void *blob,
 	for (offset = 0;
 	     offset >= 0 && depth >= initial_depth;
 	     offset = fdt_next_node(blob, offset, &depth)) {
-		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH))
+		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH - 1))
 			continue;
 
 		if (!IS_ENABLED(CONFIG_OF_KOBJ) &&
@@ -603,16 +667,13 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
 		size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
-		if (dbg_snapshot_reserved_mem_check(node, (unsigned long)size))
-			return -EINVAL;
-
 		if (size &&
 		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
-			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %ld MiB\n",
-				uname, &base, (unsigned long)size / SZ_1M);
+			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %lu MiB\n",
+				uname, &base, (unsigned long)(size / SZ_1M));
 		else
-			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %ld MiB\n",
-				uname, &base, (unsigned long)size / SZ_1M);
+			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %lu MiB\n",
+				uname, &base, (unsigned long)(size / SZ_1M));
 
 		len -= t_len;
 		if (first) {
@@ -704,7 +765,6 @@ void __init early_init_fdt_scan_reserved_mem(void)
 		if (!size)
 			break;
 		early_init_dt_reserve_memory_arch(base, size, 0);
-		record_memsize_reserved(NULL, base, size, 0, 0);
 	}
 
 	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
@@ -1175,6 +1235,10 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 
 		/* try to clear seed so it won't be found. */
 		fdt_nop_property(initial_boot_params, node, "rng-seed");
+
+		/* update CRC check value */
+		of_fdt_crc32 = crc32_be(~0, initial_boot_params,
+				fdt_totalsize(initial_boot_params));
 	}
 
 	/* break now */
@@ -1279,6 +1343,8 @@ bool __init early_init_dt_verify(void *params)
 
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
+	of_fdt_crc32 = crc32_be(~0, initial_boot_params,
+				fdt_totalsize(initial_boot_params));
 	return true;
 }
 
@@ -1293,7 +1359,6 @@ void __init early_init_dt_scan_nodes(void)
 
 	/* Setup memory, calling early_init_dt_add_memory_arch */
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-	record_memsize_memory_hole();
 }
 
 bool __init early_init_dt_scan(void *params)
@@ -1305,8 +1370,6 @@ bool __init early_init_dt_scan(void *params)
 		return false;
 
 	early_init_dt_scan_nodes();
-	of_fdt_crc32 = crc32_be(~0, initial_boot_params,
-				fdt_totalsize(initial_boot_params));
 	return true;
 }
 
