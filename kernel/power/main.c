@@ -53,7 +53,7 @@ EXPORT_SYMBOL_GPL(unlock_system_sleep);
 
 /* Routines for PM-transition notifications */
 
-BLOCKING_NOTIFIER_HEAD(pm_chain_head);
+static BLOCKING_NOTIFIER_HEAD(pm_chain_head);
 
 int register_pm_notifier(struct notifier_block *nb)
 {
@@ -80,27 +80,6 @@ int pm_notifier_call_chain(unsigned long val)
 {
 	return __pm_notifier_call_chain(val, -1, NULL);
 }
-
-#ifdef CONFIG_SEC_PM_DEBUG
-void *pm_notifier_call_chain_get_callback(int nr_calls)
-{
-	struct notifier_block *nb, *next_nb;
-	int nr_to_call = nr_calls;
-
-	nb = rcu_dereference_raw(pm_chain_head.head);
-
-	while (nb && nr_to_call) {
-		next_nb = rcu_dereference_raw(nb->next);
-		nb = next_nb;
-		nr_to_call--;
-	}
-
-	if (nb)
-		return (void *)nb->notifier_call;
-	else
-		return ERR_PTR(-ENODATA);
-}
-#endif /* CONFIG_SEC_PM_DEBUG */
 
 /* If set, devices may be suspended and resumed asynchronously. */
 int pm_async_enabled = 1;
@@ -496,7 +475,7 @@ static ssize_t pm_wakeup_irq_show(struct kobject *kobj,
 
 power_attr_ro(pm_wakeup_irq);
 
-bool pm_debug_messages_on __read_mostly = true;
+bool pm_debug_messages_on __read_mostly;
 
 static ssize_t pm_debug_messages_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
@@ -556,6 +535,7 @@ static inline void pm_print_times_init(void) {}
 #endif /* CONFIG_PM_SLEEP_DEBUG */
 
 struct kobject *power_kobj;
+EXPORT_SYMBOL_GPL(power_kobj);
 
 /**
  * state - control system sleep states.

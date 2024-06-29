@@ -48,10 +48,8 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	vfree(pages);
 
-	if (!vaddr) {
-		perrfn("failed vmap %d pages", npages);
+	if (!vaddr)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	return vaddr;
 }
@@ -99,12 +97,12 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 
 static int ion_heap_clear_pages(struct page **pages, int num, pgprot_t pgprot)
 {
-	void *addr = vm_map_ram(pages, num, -1, pgprot);
+	void *addr = vmap(pages, num, VM_MAP, pgprot);
 
 	if (!addr)
 		return -ENOMEM;
 	memset(addr, 0, PAGE_SIZE * num);
-	vm_unmap_ram(addr, num);
+	vunmap(addr);
 
 	return 0;
 }
@@ -251,7 +249,8 @@ int ion_heap_init_deferred_free(struct ion_heap *heap)
 	heap->task = kthread_run(ion_heap_deferred_free, heap,
 				 "%s", heap->name);
 	if (IS_ERR(heap->task)) {
-		perrfn("creating thread for deferred free failed");
+		pr_err("%s: creating thread for deferred free failed\n",
+		       __func__);
 		return PTR_ERR_OR_ZERO(heap->task);
 	}
 	sched_setscheduler(heap->task, SCHED_IDLE, &param);

@@ -27,19 +27,9 @@
 #include <linux/pid_namespace.h>
 #include <linux/refcount.h>
 #include <linux/user_namespace.h>
-#include <linux/freezer.h>
 
-#ifdef CONFIG_FUSE_SUPPORT_STLOG
-#include <linux/fslog.h>
-#else
-#define ST_LOG(fmt, ...)
-#endif
-
-/** Default max number of pages that can be used in a single read request */
-#define FUSE_DEFAULT_MAX_PAGES_PER_REQ 32
-
-/** Maximum of max_pages received in init_out */
-#define FUSE_MAX_MAX_PAGES 256
+/** Max number of pages that can be used in a single read request */
+#define FUSE_MAX_PAGES_PER_REQ 32
 
 /** Bias for fi->writectr, meaning new writepages must not be sent */
 #define FUSE_NOWRITE INT_MIN
@@ -128,8 +118,8 @@ enum {
 	FUSE_I_INIT_RDPLUS,
 	/** An operation changing file size is in progress  */
 	FUSE_I_SIZE_UNSTABLE,
-	/** Can be filled in by open, to use direct I/O on this file. */
-	FUSE_I_ATTR_FORCE_SYNC,
+	/* Bad inode */
+	FUSE_I_BAD,
 };
 
 struct fuse_conn;
@@ -225,6 +215,9 @@ struct fuse_out {
 
 	/** Array of arguments */
 	struct fuse_arg args[2];
+
+	/* Path used for completing d_canonical_path */
+	struct path *canonical_path;
 };
 
 /** FUSE page descriptor */
@@ -247,6 +240,9 @@ struct fuse_args {
 		unsigned argvar:1;
 		unsigned numargs;
 		struct fuse_arg args[2];
+
+		/* Path used for completing d_canonical_path */
+		struct path *canonical_path;
 	} out;
 };
 
@@ -323,6 +319,8 @@ struct fuse_req {
 	/** refcount */
 	refcount_t count;
 
+	bool user_pages;
+
 	/** Unique ID for the interrupt request */
 	u64 intr_unique;
 
@@ -382,9 +380,6 @@ struct fuse_req {
 
 	/** Inode used in the request or NULL */
 	struct inode *inode;
-
-	/** Path used for completing d_canonical_path */
-	struct path *canonical_path;
 
 	/** AIO control block */
 	struct fuse_io_priv *io;
@@ -493,9 +488,6 @@ struct fuse_conn {
 
 	/** Maximum write size */
 	unsigned max_write;
-
-	/** Maxmum number of pages that can be used in a single request */
-	unsigned int max_pages;
 
 	/** Input queue */
 	struct fuse_iqueue iq;
@@ -716,6 +708,16 @@ static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
 static inline u64 get_node_id(struct inode *inode)
 {
 	return get_fuse_inode(inode)->nodeid;
+}
+
+static inline void fuse_make_bad(struct inode *inode)
+{
+	set_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state);
+}
+
+static inline bool fuse_is_bad(struct inode *inode)
+{
+	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state));
 }
 
 /** Device operations */
@@ -1014,49 +1016,5 @@ extern const struct xattr_handler *fuse_no_acl_xattr_handlers[];
 struct posix_acl;
 struct posix_acl *fuse_get_acl(struct inode *inode, int type);
 int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type);
-
-#ifdef CONFIG_FREEZER
-static inline void fuse_freezer_do_not_count(void)
-{
-	current->flags |= PF_FREEZER_SKIP;
-}
-
-static inline void fuse_freezer_count(void)
-{
-	current->flags &= ~PF_FREEZER_SKIP;
-}
-#else /* !CONFIG_FREEZER */
-static inline void fuse_freezer_do_not_count(void) {}
-static inline void fuse_freezer_count(void) {}
-#endif
-
-#define fuse_wait_event(wq, condition)						\
-({										\
-	fuse_freezer_do_not_count();						\
-	wait_event(wq, condition);						\
-	fuse_freezer_count();							\
-})
-
-#define fuse_wait_event_killable(wq, condition)					\
-({										\
-	int __ret = 0;								\
-										\
-	fuse_freezer_do_not_count();						\
-	__ret = wait_event_killable(wq, condition);				\
-	fuse_freezer_count();							\
-										\
-	__ret;									\
-})
-
-#define fuse_wait_event_killable_exclusive(wq, condition)			\
-({										\
-	int __ret = 0;								\
-										\
-	fuse_freezer_do_not_count();						\
-	__ret = wait_event_killable_exclusive(wq, condition);			\
-	fuse_freezer_count();							\
-										\
-	__ret;									\
-})
 
 #endif /* _FS_FUSE_I_H */

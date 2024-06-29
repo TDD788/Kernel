@@ -21,9 +21,6 @@
 #include <linux/delay.h>
 #include <linux/psci.h>
 #include <linux/mm.h>
-#ifdef CONFIG_EXYNOS_CPUPM
-#include <soc/samsung/exynos-cpupm.h>
-#endif
 
 #include <uapi/linux/psci.h>
 
@@ -73,30 +70,14 @@ static int cpu_psci_cpu_disable(unsigned int cpu)
 
 static void cpu_psci_cpu_die(unsigned int cpu)
 {
-	int ret;
 	/*
 	 * There are no known implementations of PSCI actually using the
 	 * power state field, pass a sensible default for now.
 	 */
 	u32 state = PSCI_POWER_STATE_TYPE_POWER_DOWN <<
-			PSCI_0_2_POWER_STATE_TYPE_SHIFT;
-#ifdef CONFIG_EXYNOS_CPUPM
-	int affinity_level = 0;
+		    PSCI_0_2_POWER_STATE_TYPE_SHIFT;
 
-	if (exynos_cpuhp_last_cpu(cpu))
-		affinity_level = 1;
-
-	state = ((PSCI_POWER_STATE_TYPE_POWER_DOWN
-				<< PSCI_0_2_POWER_STATE_TYPE_SHIFT)
-			& PSCI_0_2_POWER_STATE_TYPE_MASK) |
-		((affinity_level
-		  << PSCI_0_2_POWER_STATE_AFFL_SHIFT)
-		 & PSCI_0_2_POWER_STATE_AFFL_MASK);
-#endif
-
-	ret = psci_ops.cpu_off(state);
-
-	pr_crit("unable to power off CPU%u (%d)\n", cpu, ret);
+	psci_ops.cpu_off(state);
 }
 
 static int cpu_psci_cpu_kill(unsigned int cpu)
