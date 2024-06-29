@@ -133,8 +133,7 @@ boot		:= arch/arm64/boot
 KBUILD_IMAGE	:= $(boot)/Image.gz
 KBUILD_DTBS	:= dtbs
 
-all:	Image.gz $(KBUILD_DTBS)
-
+all: Image.gz prepare $(KBUILD_DTBS)
 
 Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
@@ -145,10 +144,14 @@ Image.%: Image
 zinstall install:
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
-%.dtb: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
+dtb: scripts
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/exynos/$@.dts
 
-PHONY += dtbs dtbs_install
+dtbo.img: scripts
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/dts/samsung/a12s/$@.dts
+
+Image.gz-dtb: vmlinux scripts dtbs Image.gz
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 dtbs: prepare scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts
@@ -156,11 +159,11 @@ dtbs: prepare scripts
 dtbs_install:
 	$(Q)$(MAKE) $(dtbinst)=$(boot)/dts
 
-PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
-	$(if $(CONFIG_COMPAT_VDSO), \
-		$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso32 $@)
+
+PHONY += dtbs dtbs_install Image.gz-dtb
+PHONY += vdso_install
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
